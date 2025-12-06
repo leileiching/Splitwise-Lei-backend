@@ -15,7 +15,14 @@ const PORT = process.env.PORT || 3000;
 const SHEET_ID =
   process.env.GOOGLE_SHEET_ID || "1MeCb_ClcxP-H_e6vYid49l-ayRd0cF-TE_StXRO9dnM";
 const TRANSACTION_SHEET_RANGE =
-  process.env.GOOGLE_TRANSACTION_RANGE || "'transactions'!A:F";
+  process.env.GOOGLE_TRANSACTION_RANGE || "'transactions'!A:I";
+
+  // ★ 在這裡加入 debug log ★
+console.log("=== DEBUG: SHEET CONFIG ===");
+console.log("SHEET_ID in use:", SHEET_ID);
+console.log("TRANSACTION_SHEET_RANGE:", TRANSACTION_SHEET_RANGE);
+console.log("===========================");
+
 const TRANSACTION_COLUMNS = [
   "id",
   "date",
@@ -23,6 +30,9 @@ const TRANSACTION_COLUMNS = [
   "category_id",
   "amount",
   "note",
+  "payer",
+  "participants",
+  "trip_id",
 ];
 const REQUIRED_TRANSACTION_COLUMNS = ["id", "date", "type", "amount"];
 const CATEGORY_SHEET_RANGE =
@@ -405,16 +415,31 @@ app.get("/", (req, res) => {
   });
 });
 
+// 支援多帳號的登入清單
+const USERS = [
+  { username: ADMIN_USERNAME, password: ADMIN_PASSWORD },
+  { username: process.env.ADMIN2_USERNAME, password: process.env.ADMIN2_PASSWORD },
+  { username: process.env.ADMIN3_USERNAME, password: process.env.ADMIN3_PASSWORD }
+].filter(u => u.username && u.password); 
+
+
 app.post("/auth/login", (req, res) => {
   const { username, password } = req.body || {};
 
-  if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
+  // 從 USERS 陣列中找是否有符合的帳號
+  const matched = USERS.find(
+    (u) => u.username === username && u.password === password
+  );
+
+  if (!matched) {
     return res.status(401).json({ message: "帳號或密碼錯誤" });
   }
 
+  // 成功
   const token = generateToken({ username });
   res.json({ token, expiresIn: JWT_EXPIRES_IN });
 });
+
 
 const listTransactionsHandler = async (req, res) => {
   try {
